@@ -66,7 +66,7 @@ server <- function(input, output) {
   })
   # should anything go wrong with autocompletion use textInput in UI side and remove this output
   output$gene_name_autocomplete <- shiny::renderUI({
-    dqshiny::autocomplete_input("gene_names", "Gene Name:", dir(paste0("data/", species_choice())),
+    dqshiny::autocomplete_input("gene_names", "Gene Name:", dir(paste0("/data/datascience/data/diurnal/data/", species_choice())),
       max_options = 50)
   })
   # make reactive dataframe
