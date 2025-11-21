@@ -57,7 +57,7 @@ server <- function(input, output) {
   cor_cutoff <- shiny::reactive({input$correlation})
   # make condition buttons based on species selection
   output$conditions_buttons <- shiny::renderUI({
-    keys <- jsonlite::fromJSON("data/species_to_condition.json")[[species_choice()]]
+    keys <- jsonlite::fromJSON("/data/datascience/data/diurnal/data/species_to_condition.json")[[species_choice()]]
     shiny::tagList(
       shiny::radioButtons(
         "conditions_radio", "Condition: ",
@@ -74,7 +74,7 @@ server <- function(input, output) {
     shiny::req(input$gene_names, input$species, input$conditions_radio)
     genes <- gene_choice()
     full_dt <- data.table::rbindlist(lapply(genes, function(gene) {
-      files = dir(path = paste0("data/", species_choice(), "/", gene),
+      files = dir(path = paste0("/data/datascience/data/diurnal/data/", species_choice(), "/", gene),
         pattern = paste0("^", condition_choice(), "__.*.csv"), full.names = TRUE)
       dt <- data.table::rbindlist(lapply(files, function(file) {
         d <- data.table::fread(file)
