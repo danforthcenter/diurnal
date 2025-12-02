@@ -1,4 +1,5 @@
 library(shiny)
+library(shinyBS)
 library(ggplot2)
 library(plotly)
 library(jsonlite)
@@ -30,6 +31,17 @@ ui <- shiny::fluidPage(
           # except for line 104 (making groups in the plot).
           #textInput("gene_names", "Enter Gene Name(s)", placeholder = "gene1, gene2, ..."),
           shiny::uiOutput("gene_name_autocomplete"),
+          # shinyBS does not work well with fileInput,
+          # so I'm attaching a tooltip to a separate header text
+          tags$div(id = "staticText", strong("Optional File Input:")),
+          shinyBS::bsTooltip(
+            id = "staticText",
+            title = "File should contain gene names on new lines or a comma separated list of gene names",
+            placement = "top", trigger = "hover"
+          ),
+          shiny::fileInput("gene_file", "",
+            placeholder = "Gene1, Gene2, ..., GeneN",
+            ),
           shiny::numericInput("correlation", "Correlation Cutoff", value = 0.8, min = 0, max = 1)
         ),
         shiny::mainPanel(
@@ -47,11 +59,33 @@ ui <- shiny::fluidPage(
 server <- function(input, output) {
   # set reactive variables for inputs
   species_choice <- shiny::reactive({input$species})
+
+  # gene choice can come from the text entry or from a file upload. If both are present they should append.
   gene_choice <- shiny::reactive({
-    shiny::req(input$gene_names)
-    # note this is no longer necessary, but the rest is set up for a list and I might
-    # switch back to textInput so I'll leave it for now.
-    lapply(strsplit(input$gene_names, ",")[[1]], function(g) {stringr::str_to_lower(trimws(g))})
+    gene_list <- list()
+    if (shiny::isTruthy(input$gene_names)) {
+      # note this is no longer necessary, but the rest is set up for a list and I might
+      # switch back to textInput so I'll leave it for now.
+      gene_list <- append(
+        gene_list,
+        lapply(strsplit(input$gene_names, ",")[[1]], function(g) {
+          stringr::str_to_lower(trimws(g))
+        })
+      )
+    }
+    if (shiny::isTruthy(input$gene_file)) {
+      genes_from_file <- # hacky way to do this to allow for several file types.
+        lapply( # reads in data, forces it to be a list, flattens it to vector, rebuilds 1 level list.
+          unlist( # this is just to allow for txt or csv with consistency in output
+            as.list(
+              data.table::fread(input$gene_file$datapath, header = FALSE)
+            )
+          ), identity)
+      gene_list <- append(
+        genes_from_file, gene_list
+      )
+    }
+    return(gene_list)
   })
   condition_choice <- shiny::reactive({input$conditions_radio})
   cor_cutoff <- shiny::reactive({input$correlation})
@@ -71,7 +105,12 @@ server <- function(input, output) {
   })
   # make reactive dataframe
   df <- shiny::reactive({
-    shiny::req(input$gene_names, input$species, input$conditions_radio)
+    shiny::req(
+      # require at least one way of identifying genes
+      isTruthy(length(gene_choice()) >= 1),
+      # require species/conditions
+      isTruthy(input$species), isTruthy(input$conditions_radio)
+    )
     genes <- gene_choice()
     full_dt <- data.table::rbindlist(lapply(genes, function(gene) {
       files = dir(path = paste0("/mnt/", species_choice(), "/", gene),
@@ -95,7 +134,12 @@ server <- function(input, output) {
   })
   # main plot output
   output$mainplot <- plotly::renderPlotly({
-    shiny::req(input$gene_names, input$species, input$conditions_radio)
+    shiny::req(
+      # require at least one way of identifying genes
+      isTruthy(length(gene_choice()) >= 1),
+      # require species/conditions
+      isTruthy(input$species), isTruthy(input$conditions_radio)
+    )
     df <- as.data.frame(df())
     modlist <- unique(na.omit(df$model))
     # if multiple genes were possible at once then this would need to be changed
