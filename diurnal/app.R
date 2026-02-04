@@ -24,7 +24,7 @@ ui <- shiny::fluidPage(
             ),
             selected = "arabidopsis_thaliana"
           ),
-          shiny::uiOutput("conditions_buttons"),
+          shiny::uiOutput("conditions_checkboxes"),
           # autocompletion relies on `dqshiny`, which is probably not maintained.
           # should anything go wrong with the autocompletion change to use the textInput
           # below. The rest should be set up to allow for multiple genes already
@@ -87,14 +87,14 @@ server <- function(input, output) {
     }
     return(gene_list)
   })
-  condition_choice <- shiny::reactive({input$conditions_radio})
+  condition_choice <- shiny::reactive({input$conditions_checkbox})
   cor_cutoff <- shiny::reactive({input$correlation})
   # make condition buttons based on species selection
-  output$conditions_buttons <- shiny::renderUI({
+  output$conditions_checkboxes <- shiny::renderUI({
     keys <- jsonlite::fromJSON("/mnt/species_to_condition.json")[[species_choice()]]
     shiny::tagList(
-      shiny::radioButtons(
-        "conditions_radio", "Condition: ",
+      shiny::checkboxGroupInput(
+        "conditions_checkbox", "Condition: ",
         choices = keys, selected = keys[1], inline = TRUE)
     )
   })
@@ -109,14 +109,17 @@ server <- function(input, output) {
       # require at least one way of identifying genes
       isTruthy(length(gene_choice()) >= 1),
       # require species/conditions
-      isTruthy(input$species), isTruthy(input$conditions_radio)
+      isTruthy(input$species), isTruthy(input$conditions_checkbox)
     )
     genes <- gene_choice()
     full_dt <- data.table::rbindlist(lapply(genes, function(gene) {
       files = dir(path = paste0("/mnt/", species_choice(), "/", gene),
-        pattern = paste0("^", condition_choice(), "__.*.csv"), full.names = TRUE)
+        pattern = paste0("^(",
+          paste(condition_choice(), collapse = "|"),
+          ")__.*.csv"), full.names = TRUE)
       dt <- data.table::rbindlist(lapply(files, function(file) {
         d <- data.table::fread(file)
+        d$condition <- gsub("^(.*)__.*.csv", "\\1", basename(file))
         d$probe <- gsub(".*__(.*).csv", "\\1", file)
         d$gene <- gene
         return(d)
@@ -138,7 +141,7 @@ server <- function(input, output) {
       # require at least one way of identifying genes
       isTruthy(length(gene_choice()) >= 1),
       # require species/conditions
-      isTruthy(input$species), isTruthy(input$conditions_radio)
+      isTruthy(input$species), isTruthy(input$conditions_checkbox)
     )
     df <- as.data.frame(df())
     modlist <- unique(na.omit(df$model))
@@ -153,8 +156,11 @@ server <- function(input, output) {
       line_layer <- ggplot2::geom_line()
       point_layer <- ggplot2::geom_point()
     }
-    ggp <- ggplot2::ggplot(df, ggplot2::aes(x = time, y = val,
-      color = model, group = gene
+    ggp <- ggplot2::ggplot(df,
+      ggplot2::aes(
+        x = time, y = val,
+        color = interaction(model, condition),
+        group = interaction(gene, condition)
     )) +
       line_layer +
     point_layer +
@@ -171,7 +177,8 @@ server <- function(input, output) {
     filename = function(){
       paste0(species_choice(), "-",
         paste(gene_choice(), collapse = "_"), "-",
-        condition_choice(), ".csv"
+        paste(condition_choice(), collapse = "_"),
+        ".csv"
       )
     },
     content = function(fname){
