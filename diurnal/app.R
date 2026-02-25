@@ -82,7 +82,7 @@ server <- function(input, output) {
             )
           ), identity)
       gene_list <- append(
-        genes_from_file, gene_list
+        lapply(genes_from_file, stringr::str_to_lower), gene_list
       )
     }
     return(gene_list)
