@@ -42,7 +42,11 @@ ui <- shiny::fluidPage(
           shiny::fileInput("gene_file", "",
             placeholder = "Gene1, Gene2, ..., GeneN",
             ),
-          shiny::numericInput("correlation", "Correlation Cutoff", value = 0.8, min = 0, max = 1)
+          shiny::numericInput("correlation", "Correlation Cutoff", value = 0.8, min = 0, max = 1),
+          shiny::tags$a(
+            href = "mailto:datascience@danforthcenter.org?subject=Diurnal App&body=Hello",
+            "Contact: datascience@danforthcenter.org"
+          )
         ),
         shiny::mainPanel(
           # Show a plot of the generated distribution
