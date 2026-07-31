@@ -64,6 +64,42 @@ server <- function(input, output) {
   # set reactive variables for inputs
   species_choice <- shiny::reactive({input$species})
 
+  # Render dynamic panel based on species choice
+  output$citation_table <- renderTable({
+    d <- read.csv(
+        "/mnt/conditions_arabidopsis.csv",
+        nrows = 20)
+    return(d)
+  })
+  output$key_label <- renderUI({
+    key <- read.csv(
+        "/mnt/conditions_arabidopsis.csv",
+        skip = 23, nrows = 1, header = FALSE
+    )[1, 1]
+    return(key)
+  })
+  output$citation_text <- shiny::renderUI ({
+    citations <- read.delim(
+        "/mnt/conditions_arabidopsis.csv",
+        skip = 25, sep = "\t"
+      )
+    citations[, 1] <- gsub(",*$", "", citations[,1])
+    citations <- paste0(seq_len(nrow(citations)), ": ", citations[, 1])
+    return(paste(citations, collapse = "<br/>"))
+  })
+  output$dynamic_species_data <- renderUI({
+    req(input$species)
+    if (species_choice() == "arabidopsis_thaliana") {
+      tagList(
+        h3("Key:"),
+        htmlOutput("key_label"),
+        h3("Citations:"),
+        htmlOutput("citation_text"),
+        tableOutput("citation_table")
+      )
+    }
+  })
+
   # gene choice can come from the text entry or from a file upload. If both are present they should append.
   gene_choice <- shiny::reactive({
     gene_list <- list()
