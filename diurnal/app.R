@@ -55,6 +55,7 @@ ui <- shiny::fluidPage(
           shiny::downloadButton('download',"Download the data"),
           # show dataframe
           DT::DTOutput("datatable"),
+          shiny::uiOutput("dynamic_species_data")
         )
     )
 )
@@ -78,7 +79,7 @@ server <- function(input, output) {
     )[1, 1]
     return(key)
   })
-  output$citation_text <- shiny::renderUI ({
+  output$citation_text <- shiny::renderUI({
     citations <- read.delim(
         "/mnt/conditions_arabidopsis.csv",
         skip = 25, sep = "\t"
