@@ -86,7 +86,7 @@ server <- function(input, output) {
       )
     citations[, 1] <- gsub(",*$", "", citations[,1])
     citations <- paste0(seq_len(nrow(citations)), ": ", citations[, 1])
-    return(paste(citations, collapse = "<br/>"))
+    return(HTML(paste(citations, collapse = "<br/>")))
   })
   output$dynamic_species_data <- renderUI({
     req(input$species)
